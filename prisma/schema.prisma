@@ -8,11 +8,67 @@ datasource db {
 }
 
 model Profile {
-  id         Int      @id @default(autoincrement())
+  id         Int    @id @default(autoincrement())
+  userId     String @unique
   gamerName  String
   email      String
   game       String
   skillLevel String
   region     String
+
+  rating        Int @default(1000)
+  matchesPlayed Int @default(0)
+  wins          Int @default(0)
+
+  createdAt DateTime @default(now())
+
+  participants TournamentParticipant[]
+}
+
+model Tournament {
+  id         Int      @id @default(autoincrement())
+  name       String
+  game       String
+  entryFee   Int      @default(0)
+  prizePool  Int
+  maxPlayers Int
+  startTime  DateTime
+  status     String   @default("UPCOMING")
   createdAt  DateTime @default(now())
+
+  participants TournamentParticipant[]
+  matches      Match[]
+}
+
+model TournamentParticipant {
+  id           Int      @id @default(autoincrement())
+  tournamentId Int
+  userId       String
+  joinedAt     DateTime @default(now())
+
+  tournament Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+  profile    Profile    @relation(fields: [userId], references: [userId])
+
+  @@unique([tournamentId, userId])
+}
+
+model Match {
+  id Int @id @default(autoincrement())
+
+  tournamentId Int
+  player1Id    String
+  player2Id    String
+
+  player1Score Int @default(0)
+  player2Score Int @default(0)
+
+  winnerId String
+  status   String @default("COMPLETED")
+
+  createdAt   DateTime @default(now())
+  completedAt DateTime?
+
+  tournament Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+
+  @@index([tournamentId])
 }

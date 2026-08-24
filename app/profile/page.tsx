@@ -1,61 +1,116 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { createClient } from "../lib/supabase/client";
 
 export default function ProfilePage() {
+  const supabase = createClient();
+
   const [gamerName, setGamerName] = useState("");
   const [email, setEmail] = useState("");
   const [game, setGame] = useState("VALORANT");
   const [skillLevel, setSkillLevel] = useState("Beginner");
   const [region, setRegion] = useState("India");
 
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [hasProfile, setHasProfile] = useState(false);
+
   useEffect(() => {
-  const savedProfile = localStorage.getItem("hopeProfile");
+    async function loadProfile() {
+      try {
+        // Get logged-in Supabase user
+        const {
+          data: { user },
+        } = await supabase.auth.getUser();
 
-  if (savedProfile) {
-    const profile = JSON.parse(savedProfile);
+        if (!user) {
+          window.location.href = "/auth";
+          return;
+        }
 
-    setGamerName(profile.gamerName);
-    setEmail(profile.email);
-    setGame(profile.game);
-    setSkillLevel(profile.skillLevel);
-    setRegion(profile.region);
-  }
-}, []);
+        setEmail(user.email ?? "");
 
-  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
-  event.preventDefault();
+        // Load existing profile
+        const response = await fetch("/api/profile");
 
-  const profile = {
-    gamerName,
-    email,
-    game,
-    skillLevel,
-    region,
-  };
+        if (!response.ok) {
+          setLoading(false);
+          return;
+        }
 
-  try {
-    const response = await fetch("/api/profile", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(profile),
-    });
+        const profile = await response.json();
 
-    const data = await response.json();
+        if (profile) {
+          setGamerName(profile.gamerName ?? "");
+          setGame(profile.game ?? "VALORANT");
+          setSkillLevel(profile.skillLevel ?? "Beginner");
+          setRegion(profile.region ?? "India");
 
-    if (!response.ok) {
-      alert(data.error || "Failed to create profile.");
-      return;
+          setHasProfile(true);
+        }
+      } catch (error) {
+        console.error("Failed to load profile:", error);
+      } finally {
+        setLoading(false);
+      }
     }
 
-    alert(`Welcome to HOPE, ${gamerName}! Your profile has been saved.`);
-  } catch (error) {
-    console.error(error);
-    alert("Something went wrong while saving your profile.");
+    loadProfile();
+  }, []);
+
+  async function handleSubmit(
+    event: React.FormEvent<HTMLFormElement>
+  ) {
+    event.preventDefault();
+
+    setSaving(true);
+
+    try {
+      const response = await fetch("/api/profile", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          gamerName,
+          game,
+          skillLevel,
+          region,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        alert(data.error || "Failed to save profile.");
+        return;
+      }
+
+      setHasProfile(true);
+
+      alert(
+        hasProfile
+          ? "Your HOPE profile has been updated!"
+          : `Welcome to HOPE, ${gamerName}! Your profile has been created.`
+      );
+    } catch (error) {
+      console.error(error);
+      alert("Something went wrong while saving your profile.");
+    } finally {
+      setSaving(false);
+    }
   }
-}
+
+  if (loading) {
+    return (
+      <main className="flex min-h-screen items-center justify-center bg-[#08090d] text-white">
+        <p className="text-gray-400">
+          Loading your HOPE profile...
+        </p>
+      </main>
+    );
+  }
 
   return (
     <main className="min-h-screen bg-[#08090d] px-6 py-20 text-white">
@@ -75,16 +130,23 @@ export default function ProfilePage() {
           </p>
 
           <h1 className="mt-4 text-4xl font-bold">
-            Create your profile
+            {hasProfile
+              ? "Your profile"
+              : "Create your profile"}
           </h1>
 
           <p className="mt-4 text-gray-400">
-            Build your gaming identity and start competing in the HOPE
-            community.
+            {hasProfile
+              ? "Update your gaming identity and keep your HOPE profile up to date."
+              : "Build your gaming identity and start competing in the HOPE community."}
           </p>
 
-          <form onSubmit={handleSubmit} className="mt-10 space-y-6">
+          <form
+            onSubmit={handleSubmit}
+            className="mt-10 space-y-6"
+          >
 
+            {/* Gamer Name */}
             <div>
               <label className="block text-sm font-medium text-gray-300">
                 Gamer Name
@@ -93,13 +155,16 @@ export default function ProfilePage() {
               <input
                 type="text"
                 value={gamerName}
-                onChange={(event) => setGamerName(event.target.value)}
+                onChange={(event) =>
+                  setGamerName(event.target.value)
+                }
                 placeholder="Enter your gamer name"
                 required
                 className="mt-2 w-full rounded-xl border border-white/10 bg-white/[0.04] px-4 py-3 text-white outline-none transition focus:border-purple-500"
               />
             </div>
 
+            {/* Email */}
             <div>
               <label className="block text-sm font-medium text-gray-300">
                 Email
@@ -108,13 +173,16 @@ export default function ProfilePage() {
               <input
                 type="email"
                 value={email}
-                onChange={(event) => setEmail(event.target.value)}
-                placeholder="you@example.com"
-                required
-                className="mt-2 w-full rounded-xl border border-white/10 bg-white/[0.04] px-4 py-3 text-white outline-none transition focus:border-purple-500"
+                readOnly
+                className="mt-2 w-full rounded-xl border border-white/10 bg-white/[0.04] px-4 py-3 text-gray-400 outline-none"
               />
+
+              <p className="mt-2 text-xs text-gray-500">
+                This is the email connected to your HOPE account.
+              </p>
             </div>
 
+            {/* Main Game */}
             <div>
               <label className="block text-sm font-medium text-gray-300">
                 Main Game
@@ -122,7 +190,9 @@ export default function ProfilePage() {
 
               <select
                 value={game}
-                onChange={(event) => setGame(event.target.value)}
+                onChange={(event) =>
+                  setGame(event.target.value)
+                }
                 className="mt-2 w-full rounded-xl border border-white/10 bg-[#15171e] px-4 py-3 text-white outline-none focus:border-purple-500"
               >
                 <option>VALORANT</option>
@@ -134,6 +204,7 @@ export default function ProfilePage() {
               </select>
             </div>
 
+            {/* Skill Level */}
             <div>
               <label className="block text-sm font-medium text-gray-300">
                 Skill Level
@@ -141,7 +212,9 @@ export default function ProfilePage() {
 
               <select
                 value={skillLevel}
-                onChange={(event) => setSkillLevel(event.target.value)}
+                onChange={(event) =>
+                  setSkillLevel(event.target.value)
+                }
                 className="mt-2 w-full rounded-xl border border-white/10 bg-[#15171e] px-4 py-3 text-white outline-none focus:border-purple-500"
               >
                 <option>Beginner</option>
@@ -151,6 +224,7 @@ export default function ProfilePage() {
               </select>
             </div>
 
+            {/* Region */}
             <div>
               <label className="block text-sm font-medium text-gray-300">
                 Region
@@ -158,7 +232,9 @@ export default function ProfilePage() {
 
               <select
                 value={region}
-                onChange={(event) => setRegion(event.target.value)}
+                onChange={(event) =>
+                  setRegion(event.target.value)
+                }
                 className="mt-2 w-full rounded-xl border border-white/10 bg-[#15171e] px-4 py-3 text-white outline-none focus:border-purple-500"
               >
                 <option>India</option>
@@ -170,11 +246,17 @@ export default function ProfilePage() {
               </select>
             </div>
 
+            {/* Submit */}
             <button
               type="submit"
-              className="w-full rounded-xl bg-purple-600 px-5 py-3 font-semibold transition hover:bg-purple-500"
+              disabled={saving}
+              className="w-full rounded-xl bg-purple-600 px-5 py-3 font-semibold transition hover:bg-purple-500 disabled:cursor-not-allowed disabled:opacity-60"
             >
-              Create HOPE Profile
+              {saving
+                ? "Saving..."
+                : hasProfile
+                  ? "Save Changes"
+                  : "Create HOPE Profile"}
             </button>
 
           </form>

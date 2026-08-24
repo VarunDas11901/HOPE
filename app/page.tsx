@@ -1,5 +1,36 @@
+"use client";
+
+import { useEffect, useState } from "react";
 import TournamentCard from "../components/TournamentCard";
+import Link from "next/link";
+import { createClient } from "./lib/supabase/client";
+
 export default function Home() {
+  const supabase = createClient();
+
+  const [user, setUser] = useState<any>(null);
+  const [authLoading, setAuthLoading] = useState(true);
+
+  useEffect(() => {
+    async function loadUser() {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
+      setUser(user);
+      setAuthLoading(false);
+    }
+
+    loadUser();
+  }, []);
+
+  async function handleLogout() {
+    await supabase.auth.signOut();
+
+    setUser(null);
+    window.location.href = "/";
+  }
+
   return (
     <main className="min-h-screen bg-[#08090d] text-white">
 
@@ -38,16 +69,41 @@ export default function Home() {
 
           {/* Actions */}
           <div className="flex items-center gap-3">
-            <button className="hidden rounded-lg px-4 py-2 text-sm font-medium text-gray-300 transition hover:text-white sm:block">
-              Log In
-            </button>
+            {!authLoading && !user && (
+              <>
+                <Link
+                  href="/auth"
+                  className="hidden rounded-lg px-4 py-2 text-sm font-medium text-gray-300 transition hover:text-white md:block"
+                >
+                  Log In
+                </Link>
 
-            <a
-              href="/profile"
-              className="rounded-xl bg-purple-600 px-5 py-3 font-semibold text-white transition hover:bg-purple-500"
-            >
-              Join HOPE
-            </a>
+                <Link
+                  href="/auth"
+                  className="rounded-xl bg-purple-600 px-5 py-3 font-semibold text-white transition hover:bg-purple-500"
+                >
+                  Join HOPE
+                </Link>
+              </>
+            )}
+
+            {!authLoading && user && (
+              <>
+                <Link
+                  href="/profile"
+                  className="rounded-lg px-4 py-2 text-sm font-medium text-gray-300 transition hover:text-white"
+                >
+                  Profile
+                </Link>
+
+                <button
+                  onClick={handleLogout}
+                  className="rounded-xl bg-purple-600 px-5 py-3 font-semibold text-white transition hover:bg-purple-500"
+                >
+                  Log Out
+                </button>
+              </>
+            )}
           </div>
 
         </div>
@@ -72,9 +128,20 @@ export default function Home() {
           </p>
 
           <div className="mt-9 flex flex-col justify-center gap-3 sm:flex-row">
-            <button className="rounded-lg bg-purple-600 px-7 py-3.5 font-semibold transition hover:bg-purple-500">
+            <Link
+              href="/tournaments"
+              style={{
+                display: "inline-block",
+                padding: "16px 30px",
+                borderRadius: "8px",
+                background: "#a100ff",
+                color: "white",
+                fontWeight: 600,
+                textDecoration: "none",
+              }}
+            >
               Find Tournaments
-            </button>
+            </Link>
 
             <button className="rounded-lg border border-white/15 bg-white/5 px-7 py-3.5 font-semibold transition hover:bg-white/10">
               How HOPE Works
